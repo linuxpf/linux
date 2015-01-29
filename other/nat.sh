@@ -64,7 +64,7 @@ for ii in `seq 1 20`;
 do
    port=$((port+1))
    start=$((start+1))
-   vm_ip="172.16.10${start}"
+   vm_ip="172.16.10.${start}"
    echo "$port ${vm_ip}:${vm_port}"
 /sbin/iptables -t nat -A PREROUTING -p tcp -s ${source_ip}  --dport $port -j DNAT --to ${vm_ip}:${vm_port}
 done
