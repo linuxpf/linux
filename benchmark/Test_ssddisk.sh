@@ -37,3 +37,8 @@ for bs in 4k 64k 128k 1024k 2048k 4096k;do
     sleep 3
     i=$((i+1))
 done
+
+#check log
+
+cat $log |egrep -v 'records'|xargs --max-line=2
+cat $ramlog |egrep -v 'records|Test'|xargs --max-line=2
