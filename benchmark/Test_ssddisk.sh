@@ -40,5 +40,5 @@ done
 
 #check log
 
-cat $log |egrep -v 'records'|xargs --max-line=2
-cat $ramlog |egrep -v 'records|Test'|xargs --max-line=2
+cat $log |egrep -v 'records'|xargs --max-line=2|awk -F"[,| ]" 'OFS=","{print $1,$2,$3,$(NF-1)$NF}'
+cat $ramlog |egrep -v 'records|Test'|xargs --max-line=2|awk -F"[,|=| ]" 'OFS=","{print $1,$2$3,$5,$(NF-1)$NF}'
