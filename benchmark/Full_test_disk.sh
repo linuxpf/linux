@@ -2,10 +2,10 @@
 #Test 
 #################config ######
 Time=180
-DEVICE=/data/fio_full.test
+DEVICE="/cachedev/fio"
 iodepthnum=1
 Ioengine=libaio
-Filesize=40G
+Filesize=200G
 Jobnum=32
 #######################
 dir=/tmp/log
@@ -22,16 +22,17 @@ echo " /sys/block/sda/queue/scheduler" >> $report_log
 #/usr/local/monitor-base/bin/MegaCli -AdpBbuCmd -GetBbuCapacityInfo -aALL >> $report_log
 mkdir -p /tmp/log/
 hostname=`uname -n` 
-declare -a tblocksize="(4k 64k 128k 512k 1024k 4096k)"
-for i in  randwrite randread read write
+declare -a tblocksize="(4k 32k 64k)"
+for i in  randwrite randread read write readwrite randrw
 do 
 echo "Testing $i..." 
 echo 3 > /proc/sys/vm/drop_caches 
 	for BS in ${tblocksize[@]}
 	do
     
-	fio -filename=${DEVICE} -direct=1 -iodepth ${iodepthnum} -time_based -ioengine=${Ioengine} -rw=${i} -bs=${BS} -size=${Filesize} -group_reporting -numjobs=${Jobnum} -runtime=${Time}  \
+	fio -filename=${DEVICE}_${BS} -direct=1 -iodepth ${iodepthnum} -time_based -ioengine=${Ioengine} -rw=${i} -bs=${BS} -size=${Filesize} -group_reporting -numjobs=${Jobnum} -runtime=${Time}  \
 		-name=${i}.log --output=/tmp/log/${hostname}_bs${BS}_${i}.log 
+        rm -f ${DEVICE}_${BS}
 	echo "save log in /tmp/log/${hostname}_bs4k_$i.log"
     echo 3 > /proc/sys/vm/drop_caches
 	sleep 60
@@ -86,6 +87,42 @@ do
  cat $tmplog|grep bs$i|egrep -v "readwrite|randrw|randwrite"| \
             awk -F"," '/write/ && OFS=","  {print $3,$4,$5,$6,$NF}'>>$output
 
+done
+
+
+echo "randrw_read" >>$output
+#randrw_read
+for i in ${tblocksize[@]}
+do
+ echo -n "$i," >>$output
+ cat $tmplog|grep bs$i|grep randrw| \
+            awk -F"," '/read/ && OFS=","  {print $3,$4,$5,$6,$NF}'>>$output
+
+done
+
+echo "randrw_write" >>$output
+#randrw_write
+for i in ${tblocksize[@]}
+do
+ echo -n "$i," >>$output
+ cat $tmplog|grep bs$i|grep randrw| \
+            awk -F"," '/write/ && OFS=","  {print $3,$4,$5,$6,$NF}'>>$output
+
+done
+echo "readwrite_read" >>$output
+#readwrite_read
+for i in ${tblocksize[@]}
+do
+ echo -n "$i," >>$output
+ cat $tmplog|grep bs$i|grep readwrite|awk -F"," '($2 ~ /read/) && OFS="," {print $3,$4,$5,$6,$NF}' >>$output
+done
+
+echo "readwrite_write" >>$output
+#readwrite_write
+for i in ${tblocksize[@]}
+do
+ echo -n "$i," >>$output
+ cat $tmplog|grep bs$i|grep readwrite|awk -F"," '($2 ~ /write/) && OFS=","  {print $3,$4,$5,$6,$NF}' >>$output
 done
 
 cat $output |awk -F"," 'OFS="," {if($NF =="msec") print $1,$2,$3,$4,$5*1000;else print $1,$2,$3,$4,$5 }'>/tmp/1.log
