@@ -1,26 +1,26 @@
 #!/bin/bash 
 #Test 
+[ $# -ne 1 ] && exit 1
 #################config ######
 Time=180
-DEVICE="/cachedev/fio"
+DEVICE="/dev/sdc1"
 iodepthnum=1
 Ioengine=libaio
 Filesize=200G
 Jobnum=32
+item=$1
 #######################
-dir=/tmp/log
-report_log=/tmp/report.txt
+dir="/root/log/${item}"
+report_log="/root/report/${item}_iodepthnum${iodepthnum}_${Ioengine}_report.txt"
 tmplog=/tmp/tmp1
-output=/tmp/all_output.log
-#dir=/tmp/log
->$report_log
 #echo deadline > /sys/block/sda/queue/scheduler 
 #echo 512 > /sys/block/sda/queue/nr_requests 
 #echo 16 > /sys/block/sda/queue/read_ahead_kb 
-echo " /sys/block/sda/queue/scheduler" >> $report_log
-#/usr/local/monitor-base/bin/MegaCli -cfgdsply -aALL |grep Policy  >>$report_log
-#/usr/local/monitor-base/bin/MegaCli -AdpBbuCmd -GetBbuCapacityInfo -aALL >> $report_log
-mkdir -p /tmp/log/
+#echo " /sys/block/sda/queue/scheduler" >> $report_log
+mkdir -p /root/log/${item}
+mkdir -p /root/report
+echo ''>$report_log
+[ ! -d $dir ] && mkdir -p $dir
 hostname=`uname -n` 
 declare -a tblocksize="(4k 32k 64k)"
 for i in  randwrite randread read write readwrite randrw
@@ -29,23 +29,24 @@ echo "Testing $i..."
 echo 3 > /proc/sys/vm/drop_caches 
 	for BS in ${tblocksize[@]}
 	do
-    
-	fio -filename=${DEVICE}_${BS} -direct=1 -iodepth ${iodepthnum} -time_based -ioengine=${Ioengine} -rw=${i} -bs=${BS} -size=${Filesize} -group_reporting -numjobs=${Jobnum} -runtime=${Time}  \
-		-name=${i}.log --output=/tmp/log/${hostname}_bs${BS}_${i}.log 
-        rm -f ${DEVICE}_${BS}
-	echo "save log in /tmp/log/${hostname}_bs4k_$i.log"
-    echo 3 > /proc/sys/vm/drop_caches
+        info_log="$dir/${hostname}_bs${BS}_${i}_${iodepthnum}.log"
+	fio -filename=${DEVICE} -direct=1 -iodepth ${iodepthnum} -time_based -ioengine=${Ioengine} -rw=${i} -bs=${BS} -size=${Filesize} -group_reporting -numjobs=${Jobnum} -runtime=${Time}  \
+		-name=${i}.log --output=${info_log}
+       #rm -f ${DEVICE}_${BS}
+	echo "save log in ${info_log}"
+        echo 3 > /proc/sys/vm/drop_caches
 	sleep 60
 	done
-echo "save log in /tmp/log/${hostname}_bs4k_$i.log" 
+echo "save log in ${info_log}" 
 done 
 
 
 
 #check log########################################
 cd $dir
-output=/tmp/all_output.log
+output="/tmp/all_output.log"
 [ -f $output ] && rm -f $output
+
 grep -A2 iops *.log |grep -v clat|sed 's/\-//g'| \
         xargs --max-line=2| \
           awk -F '[:|,|=|(|)]' 'OFS="," {print $1,$2,$6,$7,$8,$18,$11}'|sort>$tmplog
@@ -125,4 +126,5 @@ do
  cat $tmplog|grep bs$i|grep readwrite|awk -F"," '($2 ~ /write/) && OFS=","  {print $3,$4,$5,$6,$NF}' >>$output
 done
 
-cat $output |awk -F"," 'OFS="," {if($NF =="msec") print $1,$2,$3,$4,$5*1000;else print $1,$2,$3,$4,$5 }'>/tmp/1.log
+#format values
+cat $output |awk -F"," 'OFS="," {if($NF =="msec") print $1,$2,$3,$4,$5*1000;else print $1,$2,$3,$4,$5 }'>$report_log
