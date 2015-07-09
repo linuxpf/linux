@@ -3,7 +3,7 @@
 #    echo "usage: $0 <host>"
 #    exit 1
 #fi
-#20150701
+#20150707
 host=`uname -n`
 dir="/usr/local/caiji"
 log="$dir/log/check_raid_current.log"
@@ -15,7 +15,7 @@ time=`date +%s`
 DATE_BASE=$((`date +%s`/60*60))
 host=`uname -n`
 
-#zabbixserver=""
+#zabbixserver="xx.com"
 #zabbixport=10051
 
 [ `arch` == "x86_64" ] && diskutil="/opt/MegaRAID/MegaCli/MegaCli64" || diskutil="/opt/MegaRAID/MegaCli/MegaCli"
@@ -42,13 +42,20 @@ check_status(){
     done
     #cat $log |awk -F':' '{print $2 $3}' |awk 'BEGIN{IGNORECASE=1}{if($4 ~ "online"){print $1,"Online"}else if($4 ~ "hot"){print $1,"Hotsp"}else if($4 ~ "build"){print $1,"Build"}else{print $1,"Failed"}}'
     critical_num=`cat $adpInfo_log| awk '/Critical Disks/{print$NF}'`
+    Degraded_num=`cat $adpInfo_log|grep -A9 'Device Present'| awk '/Degraded/{print$NF}'`
+    Offline_num=`cat $adpInfo_log|grep -A9 'Device Present'| awk '/Offline/{print$NF}'`
     #critical_num=`$diskutil -AdpAllInfo -aALL -nolog | awk '/Critical Disks/{print$NF}'`
 
-    if [ -z $critical_num -o $critical_num -eq 0 ];then
+    if [ $Offline_num -ne 0 ];then
+        critical_num=$Offline_num
+    elif [ $Degraded_num -ne 0 ];then
+        critical_num=$Degraded_num
+    elif [ -z $critical_num -o $critical_num -eq 0 ];then
         critical_num=`cat $log|grep "Firmware state:"|egrep -iv 'Hotspare|Online|JBOD'|wc -l`
         if [ `cat $disklog|grep "Slot Number"|wc -l` -ne `cat $log|awk '/Slot/{print$NF}'|wc -l` ];then
             critical_num=3
         fi
+    
     fi
 
 }
