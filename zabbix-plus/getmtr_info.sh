@@ -31,7 +31,6 @@ fi
 DATE1=`date +%s`
 DATE=`date "+%Y-%m-%d %H:%M"`
 
-
 read_mtr(){
     while read id ip Loss Snt Last Avg Best Wrst StDev; do
         hop_rtt="hop${i}_rtt"
@@ -57,7 +56,6 @@ function check_route(){
     upload_log="$dir/log_tmp/zabbix.mtr_${IP}.log.test"
     [ -f $upload_log ] && rm -f $upload_log
     mtr --n --report $IP >$info
-
     #save log
     timetick=`date +%H`
     end=`date -d "2 day ago" +%s`
